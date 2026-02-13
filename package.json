@@ -1,0 +1,11 @@
+{
+    "name": "moonshot-chatbot-demo",
+    "version": "1.0.0",
+    "type": "module",
+    "description": "Moonshot Tech AI Chat Widget Demo",
+    "main": "index.html",
+    "scripts": {
+        "start": "npx serve ."
+    },
+    "dependencies": {}
+}
