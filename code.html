@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Moonshot Tech - Digital Innovation Agency</title>
+<!-- Tailwind CSS CDN with plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts for typography -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=Playfair+Display:ital,wght@1,700&amp;display=swap" rel="stylesheet"/>
+<script data-purpose="tailwind-config">
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              dark: '#0a0a0c',
+              purple: '#6d28d9',
+              blue: '#2563eb',
+              gray: '#1f2937'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            serif: ['Playfair Display', 'serif'],
+          }
+        }
+      }
+    }
+  </script>
+<style data-purpose="custom-gradients">
+    body {
+      background-color: #0a0a0c;
+      color: #ffffff;
+    }
+    .hero-gradient {
+      background: radial-gradient(circle at top right, rgba(109, 40, 217, 0.2), transparent 40%),
+                  radial-gradient(circle at bottom left, rgba(37, 99, 235, 0.1), transparent 40%);
+    }
+    .service-card {
+      background: linear-gradient(145deg, #16161a 0%, #0a0a0c 100%);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      transition: border-color 0.3s ease;
+    }
+    .service-card:hover {
+      border-color: rgba(109, 40, 217, 0.4);
+    }
+    .text-glow {
+      text-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+    }
+  </style>
+</head>
+<body class="font-sans">
+<!-- BEGIN: Navigation -->
+<nav class="fixed top-0 w-full z-50 bg-brand-dark/80 backdrop-blur-md border-b border-white/5" data-purpose="main-navigation">
+<div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+<div class="flex items-center space-x-2">
+<div class="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
+<div class="w-4 h-4 bg-white rounded-full"></div>
+</div>
+<span class="text-xl font-bold tracking-tighter">MOONSHOT</span>
+</div>
+<div class="hidden md:flex items-center space-x-10 text-sm font-medium text-gray-400">
+<a class="hover:text-white transition-colors" href="#">Services</a>
+<a class="hover:text-white transition-colors" href="#">Portfolio</a>
+<a class="hover:text-white transition-colors" href="#">Process</a>
+<a class="hover:text-white transition-colors" href="#">Careers</a>
+</div>
+<div class="flex items-center space-x-6">
+<button class="text-sm font-medium px-6 py-2 border border-white/20 rounded-full hover:bg-white hover:text-black transition-all">
+          Let's talk
+        </button>
+</div>
+</div>
+</nav>
+<!-- END: Navigation -->
+<main>
+<!-- BEGIN: Hero Section -->
+<section class="relative min-h-screen flex items-center justify-center hero-gradient pt-20" data-purpose="hero">
+<div class="max-w-7xl mx-auto px-6 text-center">
+<div class="mb-6 inline-block px-4 py-1.5 border border-purple-500/30 rounded-full bg-purple-500/10 text-purple-400 text-xs font-semibold tracking-widest uppercase">
+          Digital Agency of the Year
+        </div>
+<h1 class="text-6xl md:text-8xl font-bold tracking-tighter mb-8 leading-[1.1]">
+          Digital <span class="font-serif italic text-purple-500">Innovation</span><br/>For Your Brand
+        </h1>
+<p class="max-w-2xl mx-auto text-gray-400 text-lg mb-10 leading-relaxed">
+          Tech With Moonshot delivers smart digital design and strategy, navigating trends and metrics to craft powerful, tailored solutions for your brand.
+        </p>
+<div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+<button class="px-10 py-4 bg-white text-black font-bold rounded-full hover:bg-gray-200 transition-colors">
+            Get Started
+          </button>
+<button class="px-10 py-4 bg-transparent border border-white/20 text-white font-bold rounded-full hover:bg-white/5 transition-colors">
+            Our Works
+          </button>
+</div>
+</div>
+<!-- Decorative background elements -->
+<div class="absolute bottom-0 left-0 w-full h-64 bg-gradient-to-t from-brand-dark to-transparent"></div>
+</section>
+<!-- END: Hero Section -->
+<!-- BEGIN: Services Section -->
+<section class="py-24 bg-brand-dark" data-purpose="services-grid">
+<div class="max-w-7xl mx-auto px-6">
+<div class="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
+<div class="max-w-xl">
+<h2 class="text-4xl md:text-5xl font-bold mb-4 tracking-tight">Our Core Services</h2>
+<p class="text-gray-400">We specialize in transforming complex business problems into elegant digital solutions through a variety of expert disciplines.</p>
+</div>
+<div class="hidden md:block">
+<a class="text-purple-400 border-b border-purple-400/30 pb-1 hover:text-white transition-colors" href="#">View All Services</a>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+<!-- Mobile Apps -->
+<div class="service-card p-8 rounded-2xl group" data-purpose="service-item">
+<div class="w-12 h-12 bg-purple-600/20 rounded-lg flex items-center justify-center mb-6 group-hover:bg-purple-600 transition-colors">
+<svg class="w-6 h-6 text-purple-400 group-hover:text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<h3 class="text-xl font-bold mb-3">Mobile Applications</h3>
+<p class="text-gray-400 text-sm leading-relaxed mb-6">Native and cross-platform mobile solutions built for performance and scale.</p>
+<div class="h-1 w-12 bg-purple-600 rounded-full"></div>
+</div>
+<!-- UI/UX Design -->
+<div class="service-card p-8 rounded-2xl group" data-purpose="service-item">
+<div class="w-12 h-12 bg-blue-600/20 rounded-lg flex items-center justify-center mb-6 group-hover:bg-blue-600 transition-colors">
+<svg class="w-6 h-6 text-blue-400 group-hover:text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<h3 class="text-xl font-bold mb-3">UI/UX Design</h3>
+<p class="text-gray-400 text-sm leading-relaxed mb-6">User-centric design focused on creating seamless and intuitive digital journeys.</p>
+<div class="h-1 w-12 bg-blue-600 rounded-full"></div>
+</div>
+<!-- Branding -->
+<div class="service-card p-8 rounded-2xl group" data-purpose="service-item">
+<div class="w-12 h-12 bg-pink-600/20 rounded-lg flex items-center justify-center mb-6 group-hover:bg-pink-600 transition-colors">
+<svg class="w-6 h-6 text-pink-400 group-hover:text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<h3 class="text-xl font-bold mb-3">Branding</h3>
+<p class="text-gray-400 text-sm leading-relaxed mb-6">Building visual identities that resonate and stand the test of market trends.</p>
+<div class="h-1 w-12 bg-pink-600 rounded-full"></div>
+</div>
+<!-- Web Development -->
+<div class="service-card p-8 rounded-2xl group" data-purpose="service-item">
+<div class="w-12 h-12 bg-indigo-600/20 rounded-lg flex items-center justify-center mb-6 group-hover:bg-indigo-600 transition-colors">
+<svg class="w-6 h-6 text-indigo-400 group-hover:text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<h3 class="text-xl font-bold mb-3">Web Development</h3>
+<p class="text-gray-400 text-sm leading-relaxed mb-6">High-performance websites and complex web apps using modern frameworks.</p>
+<div class="h-1 w-12 bg-indigo-600 rounded-full"></div>
+</div>
+</div>
+</div>
+</section>
+<!-- END: Services Section -->
+<!-- BEGIN: Portfolio Section -->
+<section class="py-24 bg-brand-dark overflow-hidden" data-purpose="portfolio-grid">
+<div class="max-w-7xl mx-auto px-6">
+<div class="text-center mb-16">
+<h2 class="text-5xl font-bold tracking-tighter mb-4">Explore Our Works</h2>
+<div class="flex flex-wrap justify-center gap-4 mt-8">
+<button class="px-6 py-2 rounded-full bg-white text-black text-sm font-semibold">All Projects</button>
+<button class="px-6 py-2 rounded-full bg-white/5 text-gray-400 text-sm font-semibold hover:bg-white/10 transition-colors">Mobile</button>
+<button class="px-6 py-2 rounded-full bg-white/5 text-gray-400 text-sm font-semibold hover:bg-white/10 transition-colors">Web</button>
+<button class="px-6 py-2 rounded-full bg-white/5 text-gray-400 text-sm font-semibold hover:bg-white/10 transition-colors">UI/UX</button>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Work Item 1 -->
+<div class="relative group aspect-square bg-gray-900 rounded-3xl overflow-hidden" data-purpose="portfolio-item">
+<img alt="Fintech App" class="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBag6Hy6ThAizN9pqXgCvczkNNBAzcWj11pQHIlI4fyVFwOp26EKINK6NLLa2FUdgPm6uja1N4Wh8XiiWtrOWidC9qmfIiJVHRq4yKYQ8uoyUXOPMyGZlswThVVtaXmAZWb2Orw4IDTrFIvoohiCNhau8_1aW_--RsfZAW85IpPm2bYax_8D7m2G46p3BnKqMQhAARayVILMOSP2_JDVtM38oxUChMYEFMu0o-FL0AS0t0lKVmcnTAcnCSWWcT8arHI9rSNsgR3V4GO"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-8 flex flex-col justify-end">
+<span class="text-xs font-bold text-purple-400 uppercase tracking-widest mb-2">Mobile / UI-UX</span>
+<h4 class="text-2xl font-bold">Lumina Bank</h4>
+</div>
+</div>
+<!-- Work Item 2 -->
+<div class="relative group aspect-square bg-gray-900 rounded-3xl overflow-hidden" data-purpose="portfolio-item">
+<img alt="E-Commerce" class="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAt4EgaAzn3GsoJnyzh_wI8bmLVfNdx6qP69sKQyBRn9vLtxzZX2A064uAKSrV95IqERSrf5IFByvl2W5JcEDmzk52uGBFwIt8queeM5IvAIlNbjF_vBQ8Fx4VJnU_eUjxwE3wcqq8sGyfNkf22Owp44mzTMKmptQbIJ91K900qBi7w6usrK0k44DuOY14bvhSPxxXSaPG4LelPjdHwEnIpEompJ2AMr3iEAUtnTrF0wF7lTLxAEC3S_nJ-A6wjjOd3O18uEo2JVwrU"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-8 flex flex-col justify-end">
+<span class="text-xs font-bold text-blue-400 uppercase tracking-widest mb-2">Web / Branding</span>
+<h4 class="text-2xl font-bold">Vogue Aura</h4>
+</div>
+</div>
+<!-- Work Item 3 -->
+<div class="relative group aspect-square bg-gray-900 rounded-3xl overflow-hidden" data-purpose="portfolio-item">
+<img alt="SaaS Dashboard" class="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBPSEUUhmroy1zYD_dt7ztJwyTnTkPg8pQdASDqUYpDVb4a5nIoYl2ARyJ7kpnC7rK8m2jqr6lkGRSSC9EdVHMpTMC0VMTmypoNWwvOOmq4Uc7gHgxZ1ye_IF3Yvba8f51KV7Liglz1AHTKlGn8fo0W-HowoDxobRZil3E9xEvjcHD0RduHpAwj1nwu-60s-SuStpqkhcuQ2EXSTvRJjcGmCLtSO5_4qHM_B6ZPx9SUhBNmcmKhGdntgqCOi9FhNgYJJvFKfMp2_qqD"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-8 flex flex-col justify-end">
+<span class="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-2">Development</span>
+<h4 class="text-2xl font-bold">Cloud Core</h4>
+</div>
+</div>
+<!-- Work Item 4 -->
+<div class="relative group aspect-square bg-gray-900 rounded-3xl overflow-hidden" data-purpose="portfolio-item">
+<img alt="Branding" class="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAETWYZa8V8hccPtcSnh5Iitwge4wSrJP5BW2rFjDmC2wQXBu9s89nu_z1kAv3RcRfR4V_WfHQFEto_km8RQ1LNKvqPcCBiyeFVlfz3Dxad-8DhMSnYixyvI5rkjRlRHaDRpbPQY256umOK6u-nowielEeeG0zqnZ4haH6yJf9dUNEMTV-bijmYAf0u6Pae1U6cKWBxAoGOnvx3eyHvaOuogSoe69k_S3_yMKpwl_YL2LCEqEta9zMFjBvsbiagCnkzN0PeXpQong6h"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-8 flex flex-col justify-end">
+<span class="text-xs font-bold text-pink-400 uppercase tracking-widest mb-2">Strategy</span>
+<h4 class="text-2xl font-bold">Nexus Labs</h4>
+</div>
+</div>
+<!-- Work Item 5 -->
+<div class="relative group aspect-square bg-gray-900 rounded-3xl overflow-hidden" data-purpose="portfolio-item">
+<img alt="Corporate Site" class="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD4bCAtZdXNX7yEzXu5NXNve6Fn2FRwTsfc5p4afb03buazIaArMvc4scCNXPclxY7WUnqEStxTNsLwA-5oty-Cn5xfk8FNHnTcVzLm82xR9IA7oZmj1z-C_VE2-Sm1gI3Z_ifWLbJJb8R3V24dM_wbctX60b-rkTLuRLmo3ve0RiKXHUZaVC0c_RaP_fon6Ln-k0-5FkKdxw9yPDYcsFqmj8DbHcxZOIA7jqqOsU8xguv7zgUgg3S_F2yGJoC9FMVMpFMBx8SsTedH"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-8 flex flex-col justify-end">
+<span class="text-xs font-bold text-teal-400 uppercase tracking-widest mb-2">Web / UI-UX</span>
+<h4 class="text-2xl font-bold">Archin Studio</h4>
+</div>
+</div>
+<!-- Work Item 6 -->
+<div class="relative group aspect-square bg-gray-900 rounded-3xl overflow-hidden" data-purpose="portfolio-item">
+<img alt="Portfolio Site" class="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuArx-qcEngyJOSEQ30PFf72UXml__SzIYkyyA9R8Jd-zwnCAlpLXUdGfSD4EbMVRf8_MkX-d31rWmC65iEt6i73XM5BHDEUM2cSjTGSwH8h7lgJgJUHanlNl4DKnw2tXETspTcZEH5hTW98LDMCkgpVa4KrfQlv5Iw2yBf2YAIV88gNDhGUIERtKdsktoSnlCNKGr7ADymbl-m5xamGyaXWIFx6Cttucry0VPpnp2CPSZOhUfTo_946EuIJRfBq2xweH6cCOAKyiHn-"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-8 flex flex-col justify-end">
+<span class="text-xs font-bold text-purple-400 uppercase tracking-widest mb-2">Design</span>
+<h4 class="text-2xl font-bold">PetroSky</h4>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- END: Portfolio Section -->
+<!-- BEGIN: Call to Action Section -->
+<section class="py-32 bg-brand-blue" data-purpose="cta-banner">
+<div class="max-w-7xl mx-auto px-6 text-center">
+<h2 class="text-5xl md:text-8xl font-bold tracking-tighter text-white mb-12">
+          WE MAKE<br/>YOUR BRAND<br/>SHINE!
+        </h2>
+<button class="px-12 py-5 bg-black text-white text-xl font-bold rounded-full hover:bg-gray-900 transition-all">
+          Let's Start Your Project
+        </button>
+</div>
+</section>
+<!-- END: Call to Action Section -->
+</main>
+<!-- BEGIN: Footer -->
+<footer class="bg-brand-dark border-t border-white/5 pt-24 pb-12" data-purpose="site-footer">
+<div class="max-w-7xl mx-auto px-6">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-12 mb-20">
+<!-- Brand Info -->
+<div class="col-span-1 md:col-span-1">
+<div class="flex items-center space-x-2 mb-8">
+<div class="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
+<div class="w-4 h-4 bg-white rounded-full"></div>
+</div>
+<span class="text-xl font-bold tracking-tighter">MOONSHOT</span>
+</div>
+<p class="text-gray-400 text-sm leading-relaxed max-w-xs">
+            A premier digital agency dedicated to transforming brands through innovation, design, and strategy.
+          </p>
+</div>
+<!-- Quick Links -->
+<div>
+<h5 class="text-white font-bold mb-6">Explore</h5>
+<ul class="space-y-4 text-sm text-gray-400">
+<li><a class="hover:text-white transition-colors" href="#">Our Services</a></li>
+<li><a class="hover:text-white transition-colors" href="#">Work Portfolio</a></li>
+<li><a class="hover:text-white transition-colors" href="#">Case Studies</a></li>
+<li><a class="hover:text-white transition-colors" href="#">Contact Us</a></li>
+</ul>
+</div>
+<!-- Contact Info -->
+<div>
+<h5 class="text-white font-bold mb-6">Contact</h5>
+<ul class="space-y-4 text-sm text-gray-400">
+<li>hello@moonshot.tech</li>
+<li>+1 (555) 123-4567</li>
+<li>Silicon Valley, CA</li>
+</ul>
+</div>
+<!-- Newsletter -->
+<div>
+<h5 class="text-white font-bold mb-6">Newsletter</h5>
+<div class="flex">
+<input class="bg-white/5 border-none rounded-l-lg focus:ring-1 focus:ring-purple-500 w-full text-sm" placeholder="Your email" type="email"/>
+<button class="bg-purple-600 px-4 py-2 rounded-r-lg hover:bg-purple-700 transition-colors">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+</div>
+</div>
+</div>
+<!-- Copyright & Bottom Links -->
+<div class="flex flex-col md:flex-row justify-between items-center pt-8 border-t border-white/5 text-xs text-gray-500 gap-4">
+<p>© 2024 Moonshot Tech. All Rights Reserved.</p>
+<div class="flex space-x-8">
+<a class="hover:text-white" href="#">Terms &amp; Conditions</a>
+<a class="hover:text-white" href="#">Privacy Policy</a>
+</div>
+</div>
+</div>
+</footer>
+<!-- END: Footer -->
+</body></html>
