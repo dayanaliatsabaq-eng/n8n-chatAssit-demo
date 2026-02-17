@@ -15,9 +15,27 @@ const closeIcon = document.querySelector('.close-icon');
 // State
 let isRecording = false;
 let mediaRecorder = null;
-let deepgramSocket = null;
 let audioStream = null;
 let audioChunks = [];
+let recordedMimeType = 'audio/webm'; // will be set to actual mimeType at recording time
+
+// ─── Pick the best mimeType the current browser actually supports ───────────
+function getSupportedMimeType() {
+    const candidates = [
+        'audio/webm;codecs=opus',   // Chrome, Edge (best for Deepgram)
+        'audio/webm',               // Chrome fallback
+        'audio/ogg;codecs=opus',    // Firefox
+        'audio/ogg',                // Firefox fallback
+        'audio/mp4;codecs=mp4a',    // Safari
+        'audio/mp4',                // Safari fallback
+    ];
+    for (const type of candidates) {
+        if (MediaRecorder.isTypeSupported(type)) {
+            return type;
+        }
+    }
+    return ''; // Let browser decide (last resort)
+}
 
 // Toggle chat window
 chatToggle.addEventListener('click', () => {
@@ -73,6 +91,9 @@ function addMessage(text, isUser = false) {
 
 // Show typing indicator
 function showTypingIndicator() {
+    // Avoid duplicate indicators
+    if (document.getElementById('typing-indicator')) return;
+
     const typingDiv = document.createElement('div');
     typingDiv.className = 'message bot-message';
     typingDiv.id = 'typing-indicator';
@@ -96,19 +117,13 @@ function removeTypingIndicator() {
 
 // Send message to n8n via serverless function
 async function sendMessage(text) {
-    // Add user message to chat
     addMessage(text, true);
-
-    // Show typing indicator
     showTypingIndicator();
 
     try {
-        // Call our serverless function instead of n8n directly
         const response = await fetch('/api/chat', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 message: text,
                 timestamp: new Date().toISOString(),
@@ -121,11 +136,8 @@ async function sendMessage(text) {
         }
 
         const data = await response.json();
-
-        // Remove typing indicator
         removeTypingIndicator();
 
-        // Add bot response
         const botResponse = data.response || data.message || 'I received your message!';
         addMessage(botResponse, false);
 
@@ -149,7 +161,6 @@ function getSessionId() {
 // Start recording audio
 async function startRecording() {
     try {
-        // Request microphone access
         audioStream = await navigator.mediaDevices.getUserMedia({
             audio: {
                 echoCancellation: true,
@@ -158,13 +169,18 @@ async function startRecording() {
             }
         });
 
-        // Reset audio chunks
         audioChunks = [];
 
-        // Create MediaRecorder
-        mediaRecorder = new MediaRecorder(audioStream, {
-            mimeType: 'audio/webm'
-        });
+        // Detect best supported mimeType BEFORE creating the MediaRecorder
+        const mimeType = getSupportedMimeType();
+        console.log('Recording with mimeType:', mimeType || '(browser default)');
+
+        const recorderOptions = mimeType ? { mimeType } : {};
+        mediaRecorder = new MediaRecorder(audioStream, recorderOptions);
+
+        // Store the mimeType the recorder is actually using
+        recordedMimeType = mediaRecorder.mimeType || mimeType || 'audio/webm';
+        console.log('MediaRecorder.mimeType (actual):', recordedMimeType);
 
         mediaRecorder.ondataavailable = (event) => {
             if (event.data.size > 0) {
@@ -173,21 +189,27 @@ async function startRecording() {
         };
 
         mediaRecorder.onstop = async () => {
-            // Create blob from chunks
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            // Use the ACTUAL mimeType the recorder used — not a hardcoded guess
+            const audioBlob = new Blob(audioChunks, { type: recordedMimeType });
+            console.log(`Audio blob: ${audioBlob.size} bytes, type: ${audioBlob.type}`);
+
+            if (audioBlob.size === 0) {
+                addMessage('No audio was captured. Please try again.', false);
+                return;
+            }
 
             // Convert to base64
             const reader = new FileReader();
             reader.readAsDataURL(audioBlob);
             reader.onloadend = async () => {
+                // Strip the "data:...;base64," prefix — server only needs raw base64
                 const base64Audio = reader.result.split(',')[1];
-
-                // Send to transcription API
-                await transcribeAudio(base64Audio);
+                // Pass the actual mimeType so the server knows what it received
+                await transcribeAudio(base64Audio, recordedMimeType);
             };
         };
 
-        mediaRecorder.start(250); // Collect data every 250ms
+        mediaRecorder.start(250);
 
         // Update UI
         isRecording = true;
@@ -206,12 +228,10 @@ async function startRecording() {
 function stopRecording() {
     isRecording = false;
 
-    // Stop media recorder
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
         mediaRecorder.stop();
     }
 
-    // Stop audio stream
     if (audioStream) {
         audioStream.getTracks().forEach(track => track.stop());
     }
@@ -222,40 +242,37 @@ function stopRecording() {
     document.querySelector('.mic-icon').classList.remove('hidden');
     document.querySelector('.mic-recording').classList.add('hidden');
 
-    // Reset
     mediaRecorder = null;
     audioStream = null;
 }
 
 // Transcribe audio using serverless function
-async function transcribeAudio(base64Audio) {
+async function transcribeAudio(base64Audio, mimeType) {
     try {
         showTypingIndicator();
 
-        // Call our serverless transcription function
         const response = await fetch('/api/transcribe', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                audio: base64Audio
+                audio: base64Audio,
+                mimeType: mimeType  // ← NOW we tell the server what format it is
             })
         });
 
         if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            console.error('Transcription API error:', errData);
             throw new Error(`Transcription error! status: ${response.status}`);
         }
 
         const data = await response.json();
-
         removeTypingIndicator();
 
         if (data.transcript && data.transcript.trim()) {
-            // Send transcribed text as a message
             sendMessage(data.transcript.trim());
         } else {
-            addMessage('Could not understand audio. Please try again.', false);
+            addMessage('Could not understand audio. Please speak clearly and try again.', false);
         }
 
     } catch (error) {

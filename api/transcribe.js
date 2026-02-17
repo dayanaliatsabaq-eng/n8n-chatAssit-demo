@@ -4,29 +4,25 @@
 export const config = {
     api: {
         bodyParser: {
-            sizeLimit: '10mb', // Audio files can be large
+            sizeLimit: '10mb',
         },
     },
 };
 
 export default async function handler(req, res) {
-    // Enable CORS on every response
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-    // Handle preflight FIRST - before any method checks
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
     }
 
-    // Only allow POST requests
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
     try {
-        // Safely parse body — Vercel sometimes delivers it as a string
         let body = req.body;
         if (typeof body === 'string') {
             try {
@@ -42,26 +38,22 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'Audio data is required' });
         }
 
-        // Get Deepgram API key from environment variable
         const deepgramApiKey = process.env.DEEPGRAM_API_KEY;
-
         if (!deepgramApiKey) {
             console.error('DEEPGRAM_API_KEY not configured');
             return res.status(500).json({ error: 'Server configuration error' });
         }
 
-        // Strip data URL prefix if the frontend sent a data URL
-        // e.g. "data:audio/webm;base64,AAAA..." -> "AAAA..."
+        // Strip data URL prefix if present (e.g. "data:audio/webm;base64,AAAA...")
         let base64Data = audio;
-        let detectedMimeType = mimeType || 'audio/webm';
+        let detectedMimeType = mimeType || 'audio/webm;codecs=opus';
 
         if (typeof audio === 'string' && audio.startsWith('data:')) {
             const matches = audio.match(/^data:([^;]+);base64,(.+)$/);
             if (matches) {
-                detectedMimeType = matches[1]; // e.g. "audio/webm" or "audio/ogg"
+                detectedMimeType = matches[1];
                 base64Data = matches[2];
             } else {
-                console.error('Malformed data URL received');
                 return res.status(400).json({ error: 'Malformed audio data URL' });
             }
         }
@@ -79,18 +71,24 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'Audio buffer is empty after decoding' });
         }
 
-        // Normalize MIME type — Deepgram handles webm, ogg, mp4, wav, etc.
-        // Map common aliases to Deepgram-accepted values
+        // ─── Normalise the Content-Type for Deepgram ──────────────────────────
+        // Browsers append codec info: "audio/webm;codecs=opus"
+        // Deepgram only wants the base type: "audio/webm"
+        // We also remap any aliases Deepgram doesn't accept.
+        const baseType = detectedMimeType.split(';')[0].trim().toLowerCase();
+
         const mimeMap = {
             'audio/x-m4a': 'audio/mp4',
             'audio/mpeg': 'audio/mp3',
-            'video/webm': 'audio/webm', // Some browsers record as video/webm
+            'video/webm': 'audio/webm',  // Chrome sometimes tags recordings as video/webm
+            'video/mp4': 'audio/mp4',
         };
-        const contentType = mimeMap[detectedMimeType] || detectedMimeType;
 
-        console.log(`Transcribing ${audioBuffer.length} bytes of ${contentType}`);
+        const contentType = mimeMap[baseType] || baseType;
 
-        // Call Deepgram API
+        console.log(`Transcribing ${audioBuffer.length} bytes | raw mimeType: "${detectedMimeType}" | sending as: "${contentType}"`);
+
+        // Call Deepgram
         const deepgramUrl = 'https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&punctuate=true&language=en';
 
         const deepgramResponse = await fetch(deepgramUrl, {
@@ -106,7 +104,7 @@ export default async function handler(req, res) {
 
         if (!deepgramResponse.ok) {
             console.error(`Deepgram API error ${deepgramResponse.status}:`, rawText);
-            throw new Error(`Deepgram API error: ${deepgramResponse.status} - ${rawText.slice(0, 200)}`);
+            throw new Error(`Deepgram API error: ${deepgramResponse.status} - ${rawText.slice(0, 300)}`);
         }
 
         let data;
@@ -117,17 +115,13 @@ export default async function handler(req, res) {
             throw new Error('Invalid JSON from Deepgram');
         }
 
-        // Extract transcript
         const transcript = data?.results?.channels?.[0]?.alternatives?.[0]?.transcript || '';
 
         if (!transcript) {
             console.warn('Deepgram returned empty transcript. Full response:', JSON.stringify(data));
         }
 
-        return res.status(200).json({
-            transcript,
-            success: true
-        });
+        return res.status(200).json({ transcript, success: true });
 
     } catch (error) {
         console.error('Transcription error:', error.message);
