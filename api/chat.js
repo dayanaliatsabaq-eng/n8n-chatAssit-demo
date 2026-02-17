@@ -1,6 +1,8 @@
 // Vercel Serverless Function - n8n Webhook Proxy
 // This function securely handles n8n webhook calls without exposing the webhook URL
 
+export const maxDuration = 60;
+
 export default async function handler(req, res) {
     // Enable CORS on every response
     res.setHeader('Access-Control-Allow-Origin', '*');
