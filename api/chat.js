@@ -2,19 +2,19 @@
 // This function securely handles n8n webhook calls without exposing the webhook URL
 
 export default async function handler(req, res) {
-    // Only allow POST requests
-    if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method not allowed' });
-    }
-
-    // Enable CORS
+    // Enable CORS on every response
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-    // Handle preflight
+    // Handle preflight FIRST - before any method checks
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
+    }
+
+    // Only allow POST requests
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
     }
 
     try {
@@ -51,7 +51,15 @@ export default async function handler(req, res) {
 
         const data = await response.json();
 
-        return res.status(200).json(data);
+        // n8n wraps its response in an array e.g. [{ response: "...", sessionId: "..." }]
+        // Unwrap it so the frontend receives a plain object it can read data.response from
+        const payload = Array.isArray(data) ? data[0] : data;
+
+        return res.status(200).json({
+            response: payload.response || payload.output || payload.text || 'No response received',
+            sessionId: payload.sessionId || sessionId,
+            timestamp: payload.timestamp || new Date().toISOString()
+        });
 
     } catch (error) {
         console.error('n8n webhook error:', error);

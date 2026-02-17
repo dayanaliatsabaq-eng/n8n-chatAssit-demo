@@ -2,19 +2,19 @@
 // This function securely handles Deepgram API calls without exposing the API key
 
 export default async function handler(req, res) {
-    // Only allow POST requests
-    if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method not allowed' });
-    }
-
-    // Enable CORS
+    // Enable CORS on every response
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-    // Handle preflight
+    // Handle preflight FIRST - before any method checks
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
+    }
+
+    // Only allow POST requests
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
     }
 
     try {
@@ -32,16 +32,19 @@ export default async function handler(req, res) {
             return res.status(500).json({ error: 'Server configuration error' });
         }
 
-        // Call Deepgram API
-        const deepgramUrl = 'https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true';
+        // Convert base64 back to binary buffer for Deepgram
+        const audioBuffer = Buffer.from(audio, 'base64');
+
+        // Call Deepgram API - send raw binary, NOT json with a url field
+        const deepgramUrl = 'https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&punctuate=true&language=en';
 
         const response = await fetch(deepgramUrl, {
             method: 'POST',
             headers: {
                 'Authorization': `Token ${deepgramApiKey}`,
-                'Content-Type': 'application/json',
+                'Content-Type': 'audio/webm',
             },
-            body: JSON.stringify({ url: audio })
+            body: audioBuffer
         });
 
         if (!response.ok) {
