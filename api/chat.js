@@ -53,17 +53,11 @@ async function fetchWithRetry(url, options, { retries = 2, delayMs = 2000, timeo
 
 // ─── Helper: robustly extract response text from any n8n payload shape ────────
 function extractResponseText(data) {
-    // n8n can return: an array, a plain object, or a nested object
     const candidates = Array.isArray(data) ? data : [data];
-
     for (const item of candidates) {
         if (!item || typeof item !== 'object') continue;
-
-        // Direct fields
         const direct = item.response || item.output || item.text || item.message || item.answer;
         if (direct && typeof direct === 'string' && direct.trim()) return direct.trim();
-
-        // Nested under common n8n wrappers
         const nested =
             item?.json?.response ||
             item?.json?.output ||
@@ -75,6 +69,20 @@ function extractResponseText(data) {
     }
     return null;
 }
+
+// ─── Helper: extract suggestions array from n8n payload ───────────────────────
+function extractSuggestions(data) {
+    const candidates = Array.isArray(data) ? data : [data];
+    for (const item of candidates) {
+        if (!item || typeof item !== 'object') continue;
+        const s = item.suggestions || item?.json?.suggestions || item?.data?.suggestions;
+        if (Array.isArray(s) && s.length > 0) {
+            return s.map(String).filter(Boolean).slice(0, 4); // max 4 chips
+        }
+    }
+    return [];
+}
+
 
 export default async function handler(req, res) {
     // ── CORS ──────────────────────────────────────────────────────────────────
@@ -147,12 +155,16 @@ export default async function handler(req, res) {
             throw new Error('No response text found in n8n payload');
         }
 
+        // ── Extract suggestions (optional) ────────────────────────────────────
+        const suggestions = extractSuggestions(data);
+
         // ── Determine sessionId to echo back ──────────────────────────────────
         const payload = Array.isArray(data) ? data[0] : data;
         const returnedSessionId = payload?.sessionId || payload?.json?.sessionId || sessionId;
 
         return res.status(200).json({
             response: responseText,
+            suggestions,
             sessionId: returnedSessionId,
             timestamp: payload?.timestamp || new Date().toISOString()
         });

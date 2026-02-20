@@ -361,13 +361,11 @@
     <div id="chat-window" class="chat-window hidden">
       <!-- Chat Header -->
       <div class="chat-header">
-        <div class="flex items-center space-x-2">
-          <div class="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
-            <div class="w-4 h-4 bg-white rounded-full"></div>
-          </div>
-          <div>
-            <h3 class="font-bold text-sm">Moonshot Assistant</h3>
-            <p class="text-xs text-gray-400">Online</p>
+        <div class="chat-header-info">
+          <div class="chat-header-avatar">🚀</div>
+          <div class="chat-header-text">
+            <h3>Moonshot Assistant</h3>
+            <p><span class="online-dot"></span> Online · Ready to help</p>
           </div>
         </div>
       </div>
@@ -376,15 +374,23 @@
       <div id="chat-messages" class="chat-messages">
         <div class="message bot-message">
           <div class="message-content">
-            👋 Hi! I'm your Moonshot assistant. How can I help you today?
+            👋 Hi! I'm your Moonshot assistant. Ask me anything about our services, portfolio, or how we can help your
+            brand!
           </div>
+        </div>
+        <!-- Initial suggestion chips -->
+        <div class="suggestions-container" id="initial-suggestions">
+          <button class="suggestion-chip">Our services</button>
+          <button class="suggestion-chip">See portfolio</button>
+          <button class="suggestion-chip">Get a quote</button>
+          <button class="suggestion-chip">How it works</button>
         </div>
       </div>
 
       <!-- Chat Input -->
       <div class="chat-input-container">
         <div class="chat-input-wrapper">
-          <input type="text" id="chat-input" class="chat-input" placeholder="Type your message..." autocomplete="off" />
+          <input type="text" id="chat-input" class="chat-input" placeholder="Ask anything…" autocomplete="off" />
           <button id="mic-button" class="mic-button" aria-label="Voice input">
             <svg class="mic-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -404,12 +410,13 @@
         </div>
         <div id="recording-status" class="recording-status hidden">
           <span class="recording-pulse"></span>
-          <span class="text-xs">Listening...</span>
+          <span>Listening… click mic to stop</span>
         </div>
       </div>
     </div>
   </div>
   <!-- END: Chat Widget -->
+
 
   <script src="main.js"></script>
   <script src="chat-widget.js"></script>
