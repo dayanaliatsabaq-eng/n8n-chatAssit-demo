@@ -1,5 +1,5 @@
 // Chat Widget with Secure API Integration via Vercel Serverless Functions
-// API keys are now stored securely in environment variables
+// Fixed: retry logic, timeout UX, message deduplication, better error handling
 
 // DOM Elements
 const chatToggle = document.getElementById('chat-toggle');
@@ -17,35 +17,35 @@ let isRecording = false;
 let mediaRecorder = null;
 let audioStream = null;
 let audioChunks = [];
-let recordedMimeType = 'audio/webm'; // will be set to actual mimeType at recording time
+let recordedMimeType = 'audio/webm';
+let isSending = false; // ← prevents double-sends while waiting for response
 
-// ─── Pick the best mimeType the current browser actually supports ───────────
+// ─── Pick the best mimeType the current browser actually supports ─────────────
 function getSupportedMimeType() {
     const candidates = [
-        'audio/webm;codecs=opus',   // Chrome, Edge (best for Deepgram)
-        'audio/webm',               // Chrome fallback
-        'audio/ogg;codecs=opus',    // Firefox
-        'audio/ogg',                // Firefox fallback
-        'audio/mp4;codecs=mp4a',    // Safari
-        'audio/mp4',                // Safari fallback
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/ogg;codecs=opus',
+        'audio/ogg',
+        'audio/mp4;codecs=mp4a',
+        'audio/mp4',
     ];
     for (const type of candidates) {
-        if (MediaRecorder.isTypeSupported(type)) {
-            return type;
-        }
+        if (MediaRecorder.isTypeSupported(type)) return type;
     }
-    return ''; // Let browser decide (last resort)
+    return '';
 }
 
-// Toggle chat window
+// ─── Toggle chat window ───────────────────────────────────────────────────────
 chatToggle.addEventListener('click', () => {
     chatWindow.classList.toggle('hidden');
     chatIcon.classList.toggle('hidden');
     closeIcon.classList.toggle('hidden');
 });
 
-// Send message on button click
+// ─── Send on button click ─────────────────────────────────────────────────────
 sendButton.addEventListener('click', () => {
+    if (isSending) return;
     const message = chatInput.value.trim();
     if (message) {
         sendMessage(message);
@@ -53,9 +53,9 @@ sendButton.addEventListener('click', () => {
     }
 });
 
-// Send message on Enter key
+// ─── Send on Enter key ────────────────────────────────────────────────────────
 chatInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' && !isSending) {
         const message = chatInput.value.trim();
         if (message) {
             sendMessage(message);
@@ -64,7 +64,7 @@ chatInput.addEventListener('keypress', (e) => {
     }
 });
 
-// Microphone button click
+// ─── Mic button ───────────────────────────────────────────────────────────────
 micButton.addEventListener('click', async () => {
     if (!isRecording) {
         await startRecording();
@@ -73,7 +73,7 @@ micButton.addEventListener('click', async () => {
     }
 });
 
-// Add message to chat
+// ─── Add message to chat ──────────────────────────────────────────────────────
 function addMessage(text, isUser = false) {
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
@@ -84,46 +84,69 @@ function addMessage(text, isUser = false) {
 
     messageDiv.appendChild(contentDiv);
     chatMessages.appendChild(messageDiv);
-
-    // Scroll to bottom
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-// Show typing indicator
+// ─── Typing indicator ─────────────────────────────────────────────────────────
 function showTypingIndicator() {
-    // Avoid duplicate indicators
     if (document.getElementById('typing-indicator')) return;
-
     const typingDiv = document.createElement('div');
     typingDiv.className = 'message bot-message';
     typingDiv.id = 'typing-indicator';
-
     const indicatorDiv = document.createElement('div');
     indicatorDiv.className = 'typing-indicator';
     indicatorDiv.innerHTML = '<span></span><span></span><span></span>';
-
     typingDiv.appendChild(indicatorDiv);
     chatMessages.appendChild(typingDiv);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-// Remove typing indicator
 function removeTypingIndicator() {
-    const typingIndicator = document.getElementById('typing-indicator');
-    if (typingIndicator) {
-        typingIndicator.remove();
-    }
+    document.getElementById('typing-indicator')?.remove();
 }
 
-// Send message to n8n via serverless function
-async function sendMessage(text) {
-    addMessage(text, true);
+// ─── Lock / unlock input while waiting for response ───────────────────────────
+function setInputLocked(locked) {
+    isSending = locked;
+    sendButton.disabled = locked;
+    chatInput.disabled = locked;
+    chatInput.placeholder = locked ? 'Waiting for reply...' : 'Type a message...';
+}
+
+// ─── Send message to API with automatic retry ─────────────────────────────────
+async function sendMessage(text, { retryCount = 0 } = {}) {
+    // Show user message only on first attempt (not retries)
+    if (retryCount === 0) {
+        addMessage(text, true);
+        setInputLocked(true);
+    }
+
     showTypingIndicator();
 
+    // Show a "still thinking" notice after 15s so user knows it's working
+    const slowNoticeTimer = retryCount === 0
+        ? setTimeout(() => {
+            removeTypingIndicator();
+            showTypingIndicator(); // refresh position
+            // Append a subtle status line under typing indicator
+            const notice = document.createElement('div');
+            notice.id = 'slow-notice';
+            notice.style.cssText = 'font-size:11px;color:#999;text-align:center;padding:2px 0 4px;';
+            notice.textContent = 'Still working on it…';
+            chatMessages.appendChild(notice);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }, 15000)
+        : null;
+
     try {
+        const controller = new AbortController();
+        // Client-side timeout slightly above server timeout so server error wins
+        const clientTimeout = setTimeout(() => controller.abort(), 58000);
+
         const response = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            signal: controller.signal,
             body: JSON.stringify({
                 message: text,
                 timestamp: new Date().toISOString(),
@@ -131,24 +154,74 @@ async function sendMessage(text) {
             })
         });
 
+        clearTimeout(clientTimeout);
+        clearTimeout(slowNoticeTimer);
+        document.getElementById('slow-notice')?.remove();
+        removeTypingIndicator();
+
+        // ── Parse response ────────────────────────────────────────────────────
+        const data = await response.json();
+
+        // Server returned a 5xx but included a user-friendly message — show it
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const serverMsg = data?.response || data?.message;
+            if (serverMsg) {
+                addMessage(serverMsg, false);
+            } else if (retryCount < 1) {
+                // One silent retry on 5xx with no message
+                console.warn(`HTTP ${response.status} — retrying silently`);
+                setInputLocked(false);
+                await new Promise(r => setTimeout(r, 2500));
+                return sendMessage(text, { retryCount: retryCount + 1 });
+            } else {
+                addMessage("I'm having trouble right now — please try again in a moment.", false);
+            }
+            setInputLocked(false);
+            return;
         }
 
-        const data = await response.json();
-        removeTypingIndicator();
+        const botResponse = data.response || data.message;
 
-        const botResponse = data.response || data.message || 'I received your message!';
-        addMessage(botResponse, false);
+        if (botResponse && botResponse.trim()) {
+            addMessage(botResponse.trim(), false);
+        } else {
+            // Empty response — retry once silently
+            if (retryCount < 1) {
+                console.warn('Empty response received — retrying silently');
+                setInputLocked(false);
+                await new Promise(r => setTimeout(r, 2000));
+                return sendMessage(text, { retryCount: retryCount + 1 });
+            }
+            addMessage("I didn't catch that — could you send it again?", false);
+        }
 
     } catch (error) {
-        console.error('Error sending message:', error);
+        clearTimeout(slowNoticeTimer);
+        document.getElementById('slow-notice')?.remove();
         removeTypingIndicator();
-        addMessage('Sorry, I encountered an error. Please try again.', false);
+
+        const isTimeout = error.name === 'AbortError';
+        console.error(`Send error (attempt ${retryCount + 1}):`, error.message);
+
+        if (retryCount < 1 && !isTimeout) {
+            // One silent retry on network errors (not timeouts — those need user action)
+            console.warn('Network error — retrying silently in 3s');
+            setInputLocked(false);
+            await new Promise(r => setTimeout(r, 3000));
+            return sendMessage(text, { retryCount: retryCount + 1 });
+        }
+
+        const userMessage = isTimeout
+            ? "I'm taking longer than usual — please try sending your message again."
+            : "I ran into a hiccup — please try again in a moment.";
+        addMessage(userMessage, false);
+    } finally {
+        // Always re-enable input when done
+        setInputLocked(false);
     }
 }
 
-// Get or create session ID
+// ─── Get or create session ID ─────────────────────────────────────────────────
 function getSessionId() {
     let sessionId = localStorage.getItem('chat_session_id');
     if (!sessionId) {
@@ -158,7 +231,7 @@ function getSessionId() {
     return sessionId;
 }
 
-// Start recording audio
+// ─── Start recording audio ────────────────────────────────────────────────────
 async function startRecording() {
     try {
         audioStream = await navigator.mediaDevices.getUserMedia({
@@ -170,48 +243,31 @@ async function startRecording() {
         });
 
         audioChunks = [];
-
-        // Detect best supported mimeType BEFORE creating the MediaRecorder
         const mimeType = getSupportedMimeType();
-        console.log('Recording with mimeType:', mimeType || '(browser default)');
-
         const recorderOptions = mimeType ? { mimeType } : {};
         mediaRecorder = new MediaRecorder(audioStream, recorderOptions);
-
-        // Store the mimeType the recorder is actually using
         recordedMimeType = mediaRecorder.mimeType || mimeType || 'audio/webm';
-        console.log('MediaRecorder.mimeType (actual):', recordedMimeType);
 
         mediaRecorder.ondataavailable = (event) => {
-            if (event.data.size > 0) {
-                audioChunks.push(event.data);
-            }
+            if (event.data.size > 0) audioChunks.push(event.data);
         };
 
         mediaRecorder.onstop = async () => {
-            // Use the ACTUAL mimeType the recorder used — not a hardcoded guess
             const audioBlob = new Blob(audioChunks, { type: recordedMimeType });
-            console.log(`Audio blob: ${audioBlob.size} bytes, type: ${audioBlob.type}`);
-
             if (audioBlob.size === 0) {
                 addMessage('No audio was captured. Please try again.', false);
                 return;
             }
-
-            // Convert to base64
             const reader = new FileReader();
             reader.readAsDataURL(audioBlob);
             reader.onloadend = async () => {
-                // Strip the "data:...;base64," prefix — server only needs raw base64
                 const base64Audio = reader.result.split(',')[1];
-                // Pass the actual mimeType so the server knows what it received
                 await transcribeAudio(base64Audio, recordedMimeType);
             };
         };
 
         mediaRecorder.start(250);
 
-        // Update UI
         isRecording = true;
         micButton.classList.add('recording');
         recordingStatus.classList.remove('hidden');
@@ -224,19 +280,12 @@ async function startRecording() {
     }
 }
 
-// Stop recording
+// ─── Stop recording ───────────────────────────────────────────────────────────
 function stopRecording() {
     isRecording = false;
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+    if (audioStream) audioStream.getTracks().forEach(track => track.stop());
 
-    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-        mediaRecorder.stop();
-    }
-
-    if (audioStream) {
-        audioStream.getTracks().forEach(track => track.stop());
-    }
-
-    // Update UI
     micButton.classList.remove('recording');
     recordingStatus.classList.add('hidden');
     document.querySelector('.mic-icon').classList.remove('hidden');
@@ -246,7 +295,7 @@ function stopRecording() {
     audioStream = null;
 }
 
-// Transcribe audio using serverless function
+// ─── Transcribe audio via serverless function ─────────────────────────────────
 async function transcribeAudio(base64Audio, mimeType) {
     try {
         showTypingIndicator();
@@ -254,20 +303,18 @@ async function transcribeAudio(base64Audio, mimeType) {
         const response = await fetch('/api/transcribe', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                audio: base64Audio,
-                mimeType: mimeType  // ← NOW we tell the server what format it is
-            })
+            body: JSON.stringify({ audio: base64Audio, mimeType })
         });
+
+        removeTypingIndicator();
 
         if (!response.ok) {
             const errData = await response.json().catch(() => ({}));
             console.error('Transcription API error:', errData);
-            throw new Error(`Transcription error! status: ${response.status}`);
+            throw new Error(`Transcription error: ${response.status}`);
         }
 
         const data = await response.json();
-        removeTypingIndicator();
 
         if (data.transcript && data.transcript.trim()) {
             sendMessage(data.transcript.trim());
@@ -282,5 +329,5 @@ async function transcribeAudio(base64Audio, mimeType) {
     }
 }
 
-// Initialize
+// ─── Init ─────────────────────────────────────────────────────────────────────
 console.log('Chat widget initialized with secure API integration');

@@ -1,5 +1,5 @@
 // Vercel Serverless Function - n8n Webhook Proxy
-// This function securely handles n8n webhook calls without exposing the webhook URL
+// Fixed: timeout handling, retry logic, robust response parsing
 
 export const maxDuration = 60;
 
@@ -8,107 +8,168 @@ export const config = {
         bodyParser: {
             sizeLimit: '4mb',
         },
+        // Increase response timeout limit
+        responseLimit: false,
     },
 };
 
+// ─── Helper: fetch with a manual timeout ──────────────────────────────────────
+async function fetchWithTimeout(url, options, timeoutMs = 55000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        const response = await fetch(url, { ...options, signal: controller.signal });
+        return response;
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+// ─── Helper: fetch with retry on transient errors ─────────────────────────────
+async function fetchWithRetry(url, options, { retries = 2, delayMs = 2000, timeoutMs = 55000 } = {}) {
+    let lastError;
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            const response = await fetchWithTimeout(url, options, timeoutMs);
+            // Only retry on server errors (5xx), not client errors (4xx)
+            if (response.status >= 500 && attempt < retries) {
+                const text = await response.text();
+                console.warn(`Attempt ${attempt} got ${response.status}, retrying in ${delayMs}ms. Body: ${text.substring(0, 200)}`);
+                await new Promise(r => setTimeout(r, delayMs));
+                continue;
+            }
+            return response;
+        } catch (err) {
+            lastError = err;
+            const isTimeout = err.name === 'AbortError';
+            console.warn(`Attempt ${attempt} failed (${isTimeout ? 'TIMEOUT' : err.message})`);
+            if (attempt < retries) {
+                await new Promise(r => setTimeout(r, delayMs));
+            }
+        }
+    }
+    throw lastError || new Error('All retry attempts failed');
+}
+
+// ─── Helper: robustly extract response text from any n8n payload shape ────────
+function extractResponseText(data) {
+    // n8n can return: an array, a plain object, or a nested object
+    const candidates = Array.isArray(data) ? data : [data];
+
+    for (const item of candidates) {
+        if (!item || typeof item !== 'object') continue;
+
+        // Direct fields
+        const direct = item.response || item.output || item.text || item.message || item.answer;
+        if (direct && typeof direct === 'string' && direct.trim()) return direct.trim();
+
+        // Nested under common n8n wrappers
+        const nested =
+            item?.json?.response ||
+            item?.json?.output ||
+            item?.json?.text ||
+            item?.data?.response ||
+            item?.data?.output ||
+            item?.body?.response;
+        if (nested && typeof nested === 'string' && nested.trim()) return nested.trim();
+    }
+    return null;
+}
+
 export default async function handler(req, res) {
-    // Enable CORS on every response
+    // ── CORS ──────────────────────────────────────────────────────────────────
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-    // Handle preflight FIRST - before any method checks
-    if (req.method === 'OPTIONS') {
-        return res.status(200).end();
-    }
-
-    // Only allow POST requests
-    if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method not allowed' });
-    }
+    if (req.method === 'OPTIONS') return res.status(200).end();
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
     try {
-        // Safely parse body — Vercel sometimes delivers it as a string
+        // ── Parse body ────────────────────────────────────────────────────────
         let body = req.body;
         if (typeof body === 'string') {
-            try {
-                body = JSON.parse(body);
-            } catch {
-                return res.status(400).json({ error: 'Invalid JSON body' });
-            }
+            try { body = JSON.parse(body); }
+            catch { return res.status(400).json({ error: 'Invalid JSON body' }); }
         }
 
         const { message, timestamp, sessionId } = body || {};
+        if (!message) return res.status(400).json({ error: 'Message is required' });
 
-        if (!message) {
-            return res.status(400).json({ error: 'Message is required' });
-        }
-
-        // Get n8n webhook URL from environment variable
+        // ── Config ────────────────────────────────────────────────────────────
         const n8nWebhookUrl = process.env.N8N_WEBHOOK_URL;
-
         if (!n8nWebhookUrl) {
             console.error('N8N_WEBHOOK_URL not configured');
             return res.status(500).json({ error: 'Server configuration error' });
         }
 
-        // Forward request to n8n webhook
-        const n8nResponse = await fetch(n8nWebhookUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
+        // ── Call n8n with retry + timeout ─────────────────────────────────────
+        const n8nResponse = await fetchWithRetry(
+            n8nWebhookUrl,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message,
+                    timestamp: timestamp || new Date().toISOString(),
+                    sessionId: sessionId || 'unknown'
+                })
             },
-            body: JSON.stringify({
-                message,
-                timestamp: timestamp || new Date().toISOString(),
-                sessionId: sessionId || 'unknown'
-            })
-        });
+            {
+                retries: 2,       // 1 initial attempt + 1 retry
+                delayMs: 2000,    // wait 2s before retry
+                timeoutMs: 55000  // 55s per attempt (leaves 5s buffer under Vercel's 60s limit)
+            }
+        );
 
-        // Read raw text first so we can log it if JSON parsing fails
+        // ── Read raw text so we can log it if anything goes wrong ─────────────
         const rawText = await n8nResponse.text();
 
         if (!n8nResponse.ok) {
-            console.error(`n8n webhook returned ${n8nResponse.status}:`, rawText);
+            console.error(`n8n returned HTTP ${n8nResponse.status}:`, rawText.substring(0, 500));
             throw new Error(`n8n webhook error: ${n8nResponse.status}`);
         }
 
+        // ── Parse JSON ────────────────────────────────────────────────────────
         let data;
         try {
             data = JSON.parse(rawText);
-        } catch (parseErr) {
-            console.error('Failed to parse n8n response as JSON. Raw response:', rawText);
-            throw new Error('Invalid JSON response from n8n');
+        } catch {
+            console.error('n8n returned non-JSON. Raw:', rawText.substring(0, 500));
+            throw new Error('Invalid JSON from n8n');
         }
 
-        // n8n wraps its response in an array e.g. [{ response: "...", sessionId: "..." }]
-        // Unwrap it so the frontend receives a plain object
-        const payload = Array.isArray(data) ? data[0] : data;
-
-        if (!payload) {
-            console.error('Empty payload from n8n. Raw data:', data);
-            throw new Error('Empty response from n8n');
-        }
-
-        const responseText = payload.response || payload.output || payload.text || payload.message || null;
+        // ── Extract response text (handles all n8n payload shapes) ────────────
+        const responseText = extractResponseText(data);
 
         if (!responseText) {
-            console.error('No recognizable text field in n8n payload:', payload);
-            throw new Error('No response text in n8n payload');
+            console.error('Could not find response text in n8n payload:', JSON.stringify(data).substring(0, 500));
+            throw new Error('No response text found in n8n payload');
         }
+
+        // ── Determine sessionId to echo back ──────────────────────────────────
+        const payload = Array.isArray(data) ? data[0] : data;
+        const returnedSessionId = payload?.sessionId || payload?.json?.sessionId || sessionId;
 
         return res.status(200).json({
             response: responseText,
-            sessionId: payload.sessionId || sessionId,
-            timestamp: payload.timestamp || new Date().toISOString()
+            sessionId: returnedSessionId,
+            timestamp: payload?.timestamp || new Date().toISOString()
         });
 
     } catch (error) {
-        console.error('n8n webhook error:', error.message);
+        const isTimeout = error.name === 'AbortError' || error.message?.includes('abort');
+        console.error('Chat API error:', error.message);
+
+        // Return a user-friendly message based on what actually went wrong
+        const userMessage = isTimeout
+            ? "I'm taking a bit longer than usual — please send your message again."
+            : "I ran into a hiccup, please try again in a moment.";
+
         return res.status(500).json({
             error: 'Failed to process message',
             message: error.message,
-            response: 'Sorry, I encountered an error. Please try again.'
+            response: userMessage
         });
     }
 }
