@@ -20,6 +20,14 @@ let audioChunks = [];
 let recordedMimeType = 'audio/webm';
 let isSending = false;
 
+// ─── Fallback suggestion chips (shown when n8n doesn't return suggestions) ─────
+const FALLBACK_SUGGESTIONS = [
+    'Tell me more',
+    'Our services',
+    'Get a quote',
+    'How it works',
+];
+
 // ─── Audio MIME type detection ─────────────────────────────────────────────────
 function getSupportedMimeType() {
     const candidates = [
@@ -205,8 +213,11 @@ async function sendMessage(text, { retryCount = 0 } = {}) {
         const botResponse = data.response || data.message;
         if (botResponse && botResponse.trim()) {
             addMessage(botResponse.trim(), false);
-            // Render AI suggestion chips if provided
-            renderSuggestions(data.suggestions);
+            // Render AI suggestion chips — fall back to defaults if n8n didn't return any
+            const chips = (Array.isArray(data.suggestions) && data.suggestions.length > 0)
+                ? data.suggestions
+                : FALLBACK_SUGGESTIONS;
+            renderSuggestions(chips);
         } else if (retryCount < 1) {
             setInputLocked(false);
             await delay(2000);
