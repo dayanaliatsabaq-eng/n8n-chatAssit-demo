@@ -163,7 +163,9 @@ export default async function handler(req, res) {
         const returnedSessionId = payload?.sessionId || payload?.json?.sessionId || sessionId;
 
         return res.status(200).json({
-            response: responseText,
+            response: responseText,   // for your API / logs
+            output: responseText,     // 👈 for the chat widget
+            text: responseText,       // 👈 extra safety
             suggestions,
             sessionId: returnedSessionId,
             timestamp: payload?.timestamp || new Date().toISOString()
