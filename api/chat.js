@@ -76,8 +76,8 @@ function extractSuggestions(data) {
     for (const item of candidates) {
         if (!item || typeof item !== 'object') continue;
         const s = item.suggestions || item?.json?.suggestions || item?.data?.suggestions;
-        if (Array.isArray(s) && s.length > 0) {
-            return s.map(String).filter(Boolean).slice(0, 4); // max 4 chips
+        if (Array.isArray(s) && s.length >= 2) {
+            return s.map(String).filter(Boolean).slice(0, 3); // 2–3 chips
         }
     }
     return [];

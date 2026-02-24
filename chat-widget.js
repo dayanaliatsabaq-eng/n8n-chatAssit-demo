@@ -18,15 +18,24 @@ let mediaRecorder = null;
 let audioStream = null;
 let audioChunks = [];
 let recordedMimeType = 'audio/webm';
-let isSending = false;
+let activeRequests = 0;
 
-// ─── Fallback suggestion chips (shown when n8n doesn't return suggestions) ─────
-const FALLBACK_SUGGESTIONS = [
-    'Tell me more',
-    'Our services',
-    'Get a quote',
-    'How it works',
-];
+// ─── Message counter (used to pick context-appropriate fallback chips) ─────────
+let messageCount = 0;
+
+// ─── Fallback chips — contextual 2–3 chips when n8n returns none ───────────────
+function getContextualFallbacks() {
+    if (messageCount <= 1) {
+        // Opening — help the user explore
+        return ['What do you offer?', 'How can you help me?'];
+    } else if (messageCount <= 3) {
+        // Early conversation — surface key actions
+        return ['Tell me more', 'Get a quote', 'How does it work?'];
+    } else {
+        // Mid/late conversation — push toward conversion
+        return ['Talk to a human', 'Get in touch'];
+    }
+}
 
 // ─── Audio MIME type detection ─────────────────────────────────────────────────
 function getSupportedMimeType() {
@@ -58,16 +67,21 @@ document.querySelectorAll('#initial-suggestions .suggestion-chip').forEach(btn =
 
 // ─── Send on button click ──────────────────────────────────────────────────────
 sendButton.addEventListener('click', () => {
-    if (isSending) return;
     const message = chatInput.value.trim();
-    if (message) { sendMessage(message); chatInput.value = ''; }
+    if (message) {
+        sendMessage(message);
+        chatInput.value = '';
+    }
 });
 
 // ─── Send on Enter ─────────────────────────────────────────────────────────────
 chatInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter' && !isSending) {
+    if (e.key === 'Enter') {
         const message = chatInput.value.trim();
-        if (message) { sendMessage(message); chatInput.value = ''; }
+        if (message) {
+            sendMessage(message);
+            chatInput.value = '';
+        }
     }
 });
 
@@ -141,10 +155,10 @@ function removeTypingIndicator() {
 
 // ─── Lock / unlock input ───────────────────────────────────────────────────────
 function setInputLocked(locked) {
-    isSending = locked;
-    sendButton.disabled = locked;
-    chatInput.disabled = locked;
-    chatInput.placeholder = locked ? 'Waiting for reply…' : 'Ask anything…';
+    // We no longer lock the input field to allow concurrent messaging
+    sendButton.disabled = false;
+    chatInput.disabled = false;
+    chatInput.placeholder = 'Ask anything…';
 }
 
 // ─── Scroll helper ─────────────────────────────────────────────────────────────
@@ -156,7 +170,7 @@ function scrollToBottom() {
 async function sendMessage(text, { retryCount = 0 } = {}) {
     if (retryCount === 0) {
         addMessage(text, true);
-        setInputLocked(true);
+        activeRequests++;
     }
 
     showTypingIndicator();
@@ -191,7 +205,11 @@ async function sendMessage(text, { retryCount = 0 } = {}) {
         clearTimeout(clientTimeout);
         clearTimeout(slowNoticeTimer);
         document.getElementById('slow-notice')?.remove();
-        removeTypingIndicator();
+
+        activeRequests = Math.max(0, activeRequests - 1);
+        if (activeRequests === 0) {
+            removeTypingIndicator();
+        }
 
         const data = await response.json();
 
@@ -200,26 +218,26 @@ async function sendMessage(text, { retryCount = 0 } = {}) {
             if (serverMsg) {
                 addMessage(serverMsg, false);
             } else if (retryCount < 1) {
-                setInputLocked(false);
+                activeRequests++; // Re-increment for the retry
                 await delay(2500);
                 return sendMessage(text, { retryCount: retryCount + 1 });
             } else {
                 addMessage("I'm having trouble right now — please try again in a moment.", false);
             }
-            setInputLocked(false);
             return;
         }
 
         const botResponse = data.response || data.message;
         if (botResponse && botResponse.trim()) {
+            messageCount++;
             addMessage(botResponse.trim(), false);
-            // Render AI suggestion chips — fall back to defaults if n8n didn't return any
+            // Render AI suggestion chips — fall back to contextual defaults if n8n returns none
             const chips = (Array.isArray(data.suggestions) && data.suggestions.length > 0)
                 ? data.suggestions
-                : FALLBACK_SUGGESTIONS;
+                : getContextualFallbacks();
             renderSuggestions(chips);
         } else if (retryCount < 1) {
-            setInputLocked(false);
+            activeRequests++; // Re-increment for the retry
             await delay(2000);
             return sendMessage(text, { retryCount: retryCount + 1 });
         } else {
@@ -235,7 +253,7 @@ async function sendMessage(text, { retryCount = 0 } = {}) {
         console.error(`Send error (attempt ${retryCount + 1}):`, error.message);
 
         if (retryCount < 1 && !isTimeout) {
-            setInputLocked(false);
+            activeRequests++; // Re-increment for the retry
             await delay(3000);
             return sendMessage(text, { retryCount: retryCount + 1 });
         }
@@ -246,8 +264,6 @@ async function sendMessage(text, { retryCount = 0 } = {}) {
                 : "I ran into a hiccup — please try again in a moment.",
             false
         );
-    } finally {
-        setInputLocked(false);
     }
 }
 

@@ -337,23 +337,23 @@ body {
   display: flex;
   gap: 8px;
   align-items: center;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: #ffffff;
+  border: 1px solid rgba(124, 58, 237, 0.3);
   border-radius: 28px;
   padding: 6px 8px 6px 16px;
   transition: border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .chat-input-wrapper:focus-within {
-  border-color: rgba(124, 58, 237, 0.6);
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+  border-color: rgba(124, 58, 237, 0.8);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
 }
 
 .chat-input {
   flex: 1;
   background: transparent;
   border: none;
-  color: white;
+  color: #1a1a1a;
   font-size: 14px;
   outline: none;
   font-family: inherit;
@@ -361,7 +361,7 @@ body {
 }
 
 .chat-input::placeholder {
-  color: rgba(255, 255, 255, 0.3);
+  color: #6b7280;
 }
 
 .mic-button,
