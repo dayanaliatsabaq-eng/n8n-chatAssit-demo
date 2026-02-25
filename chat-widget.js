@@ -23,6 +23,9 @@ let activeRequests = 0;
 // ─── Message counter (used to pick context-appropriate fallback chips) ─────────
 let messageCount = 0;
 
+// ─── History of shown chips to prevent redundancy (at most 1 repeat) ──────────
+const shownChipsHistory = new Map();
+
 // ─── Fallback chips — contextual 2–3 chips when n8n returns none ───────────────
 function getContextualFallbacks() {
     if (messageCount <= 1) {
@@ -30,11 +33,47 @@ function getContextualFallbacks() {
         return ['What do you offer?', 'How can you help me?'];
     } else if (messageCount <= 3) {
         // Early conversation — surface key actions
-        return ['Tell me more', 'Get a quote', 'How does it work?'];
+        return ['Tell me more', 'Get a quote'];
     } else {
         // Mid/late conversation — push toward conversion
-        return ['Talk to a human', 'Get in touch'];
+        return ['Talk to a human'];
     }
+}
+
+// ─── Filter and limit suggestions based on necessity and redundancy ───────────
+function filterAndLimitSuggestions(suggestions) {
+    if (!suggestions || !Array.isArray(suggestions)) return [];
+
+    // Rule: "don't want to send suggestion chips all the time just when they are necessary"
+    // Logic: Reduce frequency slightly (e.g., skip 20% of the time, or based on message count)
+    // We skip if messageCount is even and suggestions aren't "critical" (placeholder logic)
+    const shouldSkip = Math.random() < 0.2;
+    if (shouldSkip && suggestions.length > 0) {
+        console.log('💡 Logic: Skipping suggestions to avoid clutter');
+        return [];
+    }
+
+    // Rule: "can repeat at most like 1 time" -> shown at most 2 times total
+    const filtered = suggestions.filter(text => {
+        const count = shownChipsHistory.get(text) || 0;
+        return count < 2;
+    });
+
+    // Rule: "not more than three at a time and minimum can be zero and mostly should only be 2"
+    // We already have max 3 from API. Let's aim for 2.
+    let finalChips = filtered.slice(0, 3);
+
+    // If we have 3, maybe drop one to "mostly be 2"
+    if (finalChips.length === 3 && Math.random() < 0.7) {
+        finalChips = finalChips.slice(0, 2);
+    }
+
+    // Record the fact that these are being shown
+    finalChips.forEach(text => {
+        shownChipsHistory.set(text, (shownChipsHistory.get(text) || 0) + 1);
+    });
+
+    return finalChips;
 }
 
 // ─── Audio MIME type detection ─────────────────────────────────────────────────
@@ -61,9 +100,26 @@ chatToggle.addEventListener('click', () => {
 });
 
 // ─── Hook initial suggestion chips ────────────────────────────────────────────
-document.querySelectorAll('#initial-suggestions .suggestion-chip').forEach(btn => {
-    btn.addEventListener('click', () => handleSuggestionClick(btn));
-});
+function setupInitialSuggestions() {
+    const container = document.getElementById('initial-suggestions');
+    if (!container) return;
+
+    const chips = Array.from(container.querySelectorAll('.suggestion-chip'));
+    const chipTexts = chips.map(c => c.textContent.trim());
+
+    // Clear and re-render using our refined logic
+    container.innerHTML = '';
+    const filtered = filterAndLimitSuggestions(chipTexts);
+
+    filtered.forEach(text => {
+        const chip = document.createElement('button');
+        chip.className = 'suggestion-chip';
+        chip.textContent = text;
+        chip.addEventListener('click', () => handleSuggestionClick(chip));
+        container.appendChild(chip);
+    });
+}
+setupInitialSuggestions();
 
 // ─── Send on button click ──────────────────────────────────────────────────────
 sendButton.addEventListener('click', () => {
@@ -232,10 +288,12 @@ async function sendMessage(text, { retryCount = 0 } = {}) {
             messageCount++;
             addMessage(botResponse.trim(), false);
             // Render AI suggestion chips — fall back to contextual defaults if n8n returns none
-            const chips = (Array.isArray(data.suggestions) && data.suggestions.length > 0)
+            const rawChips = (Array.isArray(data.suggestions) && data.suggestions.length > 0)
                 ? data.suggestions
                 : getContextualFallbacks();
-            renderSuggestions(chips);
+
+            const filteredChips = filterAndLimitSuggestions(rawChips);
+            renderSuggestions(filteredChips);
         } else if (retryCount < 1) {
             activeRequests++; // Re-increment for the retry
             await delay(2000);
